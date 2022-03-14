@@ -1,8 +1,8 @@
 ﻿using Autofac.Extras.FakeItEasy;
 using FakeItEasy;
 using FluentAssertions;
-using Flurl.Http.Testing;
 using Microsoft.Extensions.Logging;
+using RichardSzalay.MockHttp;
 using System;
 using System.Net;
 using System.Net.Http;
@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using TestExamples.ViaCep.Domain.Entities;
 using TestExamples.ViaCep.Repositories;
 using Xunit;
+using TestExamples.TestUtilities.FakeItEasy.Extensions;
 
 namespace TestExamples.ViaCep.UnitTests.Repositories
 {
@@ -35,10 +36,18 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
                 ""siafi"": ""4123""
             }";
 
-            using var httpTest = new HttpTest();
-            httpTest.RespondWith(apiJsonResult, (int)HttpStatusCode.OK);
+            using var mockHttp = new MockHttpMessageHandler();
+            _ = mockHttp.When(HttpMethod.Get, $"https://viacep.com.br/ws/{validZipCode}/json/")
+                    .Respond(HttpStatusCode.OK, "application/json", apiJsonResult);
+
+            using var httpClient = mockHttp.ToHttpClient();
+            httpClient.BaseAddress = new Uri("https://viacep.com.br");
 
             using var autoFake = new AutoFake();
+
+            autoFake.Provide(httpClient);
+
+
             var addressRepository = autoFake.Resolve<AddressRepository>();
 
             var expectedAddress = new Address(zipCode: "30130-010",
@@ -83,10 +92,17 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
                 ""erro"": true
             }";
 
-            using var httpTest = new HttpTest();
-            httpTest.RespondWith(apiViaCepErrorResult, (int)HttpStatusCode.OK);
+            using var mockHttp = new MockHttpMessageHandler();
+            _ = mockHttp.When(HttpMethod.Get, $"https://viacep.com.br/ws/{zipCodeOfANonExistentPlace}/json/")
+                    .Respond(HttpStatusCode.OK, "application/json", apiViaCepErrorResult);
+
+            using var httpClient = mockHttp.ToHttpClient();
+            httpClient.BaseAddress = new Uri("https://viacep.com.br");
 
             using var autoFake = new AutoFake();
+
+            autoFake.Provide(httpClient);
+
             var addressRepository = autoFake.Resolve<AddressRepository>();
 
             // Act
@@ -102,6 +118,8 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
         public async Task Should_call_the_external_API_with_correct_parameters(string validZipCode)
         {
             // Arrange
+            var expectedEndpoint = $"https://viacep.com.br/ws/{validZipCode}/json/";
+
             var apiJsonResult =
             @"{
                 ""cep"": ""30130-010"",
@@ -116,19 +134,24 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
                 ""siafi"": ""4123""
             }";
 
-            using var httpTest = new HttpTest();
-            httpTest.RespondWith(apiJsonResult, (int)HttpStatusCode.OK);
+            using var mockHttp = new MockHttpMessageHandler();
+            _ = mockHttp.Expect(HttpMethod.Get, expectedEndpoint)
+                    .Respond(HttpStatusCode.OK, "application/json", apiJsonResult);
+
+            using var httpClient = mockHttp.ToHttpClient();
+            httpClient.BaseAddress = new Uri("https://viacep.com.br");
 
             using var autoFake = new AutoFake();
+
+            autoFake.Provide(httpClient);
+
             var addressRepository = autoFake.Resolve<AddressRepository>();
 
             // Act
-            _ = await addressRepository.GetAddressByZipCodeAsync(validZipCode);
+            var address = await addressRepository.GetAddressByZipCodeAsync(validZipCode);
 
             // Assert
-            httpTest.ShouldHaveCalled($"https://viacep.com.br/ws/{validZipCode}/json/")
-                .WithVerb(HttpMethod.Get)
-                .WithContentType("application/json");
+            mockHttp.VerifyNoOutstandingExpectation();
         }
 
         [Theory]
@@ -139,11 +162,18 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
         {
             // Arrange
             var someZipCode = "30130-010";
+            var expectedEndpoint = $"https://viacep.com.br/ws/{someZipCode}/json/";
 
-            using var httpTest = new HttpTest();
-            httpTest.RespondWith("ERROR", (int)errorStatusCode);
+            using var mockHttp = new MockHttpMessageHandler();
+            _ = mockHttp.When(HttpMethod.Get, expectedEndpoint)
+                    .Respond(errorStatusCode, "application/json", "ERROR");
+
+            using var httpClient = mockHttp.ToHttpClient();
+            httpClient.BaseAddress = new Uri("https://viacep.com.br");
 
             using var autoFake = new AutoFake();
+
+            autoFake.Provide(httpClient);
             var addressRepository = autoFake.Resolve<AddressRepository>();
 
             // Act
@@ -161,24 +191,38 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
         {
             // Arrange
             var someZipCode = "30130-010";
+            var expectedEndpoint = $"https://viacep.com.br/ws/{someZipCode}/json/";
 
-            using var httpTest = new HttpTest();
-            httpTest.RespondWith("ERROR", (int)errorStatusCode);
+            using var mockHttp = new MockHttpMessageHandler();
+            _ = mockHttp.When(HttpMethod.Get, expectedEndpoint)
+                    .Respond(errorStatusCode, "application/json", "ERROR");
+
+            using var httpClient = mockHttp.ToHttpClient();
+            httpClient.BaseAddress = new Uri("https://viacep.com.br");
 
             using var autoFake = new AutoFake();
 
+            autoFake.Provide(httpClient);
+
             var logger = A.Fake<ILogger<AddressRepository>>();
             autoFake.Provide(logger); // TIP: In addition to the Resolve method, it is possible to create an object and provide it to AutoFake.
-                                      // So the log object will be injected when the AddressRepository object is created by the Resolve method. 
+                                      // So the log object will be injected when the AddressRepository object is created by the Resolve method.
+
             var addressRepository = autoFake.Resolve<AddressRepository>();
 
-            var logErrorCall = A.CallTo(() => logger.LogError(A<string?>.Ignored));
+            var expectedLogMessage = $"There is no address for the zip code {someZipCode}.";
 
             // Act
-            _ = await addressRepository.GetAddressByZipCodeAsync(someZipCode);
+            try
+            {
+                _ = await addressRepository.GetAddressByZipCodeAsync(someZipCode);
+            }
+            catch
+            { }
 
             // Assert
-            logErrorCall.MustHaveHappened(Repeated.Exactly.Once);
+            logger.VerifyLogObject(LogLevel.Error, "ERROR")
+                .MustHaveHappenedOnceExactly();
         }
     }
 }
