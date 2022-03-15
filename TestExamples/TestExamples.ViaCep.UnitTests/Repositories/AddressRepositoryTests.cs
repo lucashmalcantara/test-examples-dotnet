@@ -47,7 +47,6 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
 
             autoFake.Provide(httpClient);
 
-
             var addressRepository = autoFake.Resolve<AddressRepository>();
 
             var expectedAddress = new Address(zipCode: "30130-010",
@@ -158,7 +157,7 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
         [InlineData(HttpStatusCode.BadRequest)]
         [InlineData(HttpStatusCode.InternalServerError)]
         [InlineData(HttpStatusCode.RequestTimeout)]
-        public async Task Should_throw_an_HttpRequestException_when_the_external_API_retruns_an_unpredicted_error(HttpStatusCode errorStatusCode)
+        public async Task Should_throw_an_HttpRequestException_when_the_external_API_returns_an_unpredicted_error(HttpStatusCode errorStatusCode)
         {
             // Arrange
             var someZipCode = "30130-010";
@@ -187,7 +186,7 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
         [InlineData(HttpStatusCode.BadRequest)]
         [InlineData(HttpStatusCode.InternalServerError)]
         [InlineData(HttpStatusCode.RequestTimeout)]
-        public async Task Should_log_a_message_when_the_external_API_retruns_an_unpredicted_error(HttpStatusCode errorStatusCode)
+        public async Task Should_log_a_message_when_the_external_API_returns_an_unpredicted_error(HttpStatusCode errorStatusCode)
         {
             // Arrange
             var someZipCode = "30130-010";

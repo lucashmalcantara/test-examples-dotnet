@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using TestExamples.ViaCep.Domain.Entities;
 using TestExamples.ViaCep.Domain.Repositories;
+using TestExamples.ViaCep.Repositories.Models;
 
 namespace TestExamples.ViaCep.Repositories
 {
@@ -38,10 +39,20 @@ namespace TestExamples.ViaCep.Repositories
             if (IsError(responseContent))
                 throw new ArgumentException($"There is no address for the zip code {zipCode}.");
 
-#pragma warning disable CS8603 // Possible null reference return.
-            return JsonSerializer.Deserialize<Address>(responseContent);
-#pragma warning restore CS8603 // Possible null reference return.
+            var viaCepAddress =  JsonSerializer.Deserialize<ViaCepAddress>(responseContent);
+
+            var domainAddress = ParseToAddress(viaCepAddress);
+
+            return domainAddress;
         }
+
+        private Address ParseToAddress(ViaCepAddress viaCepAddress) =>
+            new Address(viaCepAddress.Cep,
+                viaCepAddress.Logradouro,
+                viaCepAddress.Complemento,
+                viaCepAddress.Bairro,
+                viaCepAddress.Localidade,
+                viaCepAddress.Uf);
 
         private bool IsError(string responseContent)
         {
