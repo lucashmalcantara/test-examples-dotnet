@@ -2,6 +2,7 @@
 using System;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TestExamples.ViaCep.Domain.Entities;
 using TestExamples.ViaCep.Domain.Repositories;
@@ -25,7 +26,9 @@ namespace TestExamples.ViaCep.Repositories
             if (string.IsNullOrWhiteSpace(zipCode))
                 throw new ArgumentNullException(nameof(zipCode), "Zip code cannot be null or empty");
 
-            var resource = $"ws/{zipCode}/json/";
+            var formattedZipCode = Regex.Replace(zipCode, "[^0-9]", "");
+
+            var resource = $"ws/{formattedZipCode}/json/";
 
             var response = await _httpClient.GetAsync(resource);
             var responseContent = await response.Content.ReadAsStringAsync();

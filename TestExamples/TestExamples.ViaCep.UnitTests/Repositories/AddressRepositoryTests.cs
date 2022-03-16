@@ -17,9 +17,9 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
     public class AddressRepositoryTests
     {
         [Theory]
-        [InlineData("30130010")]
-        [InlineData("30130-010")]
-        public async Task Should_return_an_Address_when_zip_code_exists(string validZipCode)
+        [InlineData("30130010", "30130010")]
+        [InlineData("30130-010", "30130010")]
+        public async Task Should_return_an_Address_when_zip_code_exists(string validZipCode, string formattedZipCode)
         {
             // Arrange
             var apiJsonResult =
@@ -37,7 +37,7 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
             }";
 
             using var mockHttp = new MockHttpMessageHandler();
-            _ = mockHttp.When(HttpMethod.Get, $"https://viacep.com.br/ws/{validZipCode}/json/")
+            _ = mockHttp.When(HttpMethod.Get, $"https://viacep.com.br/ws/{formattedZipCode}/json/")
                     .Respond(HttpStatusCode.OK, "application/json", apiJsonResult);
 
             using var httpClient = mockHttp.ToHttpClient();
@@ -84,7 +84,7 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
         public async Task Should_throw_an_ArgumentException_when_zip_code_is_invalid()
         {
             // Arrange
-            var zipCodeOfANonExistentPlace = "99999-999";
+            var zipCodeOfANonExistentPlace = "99999999";
 
             var apiViaCepErrorResult =
             @"{
@@ -112,12 +112,12 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
         }
 
         [Theory]
-        [InlineData("30130010")]
-        [InlineData("30130-010")]
-        public async Task Should_call_the_external_API_with_correct_parameters(string validZipCode)
+        [InlineData("30130010", "30130010")]
+        [InlineData("30130-010", "30130010")]
+        public async Task Should_call_the_external_API_with_correct_parameters(string validZipCode, string formattedZipCode)
         {
             // Arrange
-            var expectedEndpoint = $"https://viacep.com.br/ws/{validZipCode}/json/";
+            var expectedEndpoint = $"https://viacep.com.br/ws/{formattedZipCode}/json/";
 
             var apiJsonResult =
             @"{
@@ -189,7 +189,7 @@ namespace TestExamples.ViaCep.UnitTests.Repositories
         public async Task Should_log_a_message_when_the_external_API_returns_an_unpredicted_error(HttpStatusCode errorStatusCode)
         {
             // Arrange
-            var someZipCode = "30130-010";
+            var someZipCode = "30130010";
             var expectedEndpoint = $"https://viacep.com.br/ws/{someZipCode}/json/";
 
             using var mockHttp = new MockHttpMessageHandler();
